@@ -559,7 +559,9 @@ public class Config : NotifyPropertyChanged
                 { "reconnect",          "1" },                                       // auto reconnect after disconnect before EOF
                 { "reconnect_streamed", "1" },                                       // auto reconnect streamed / non seekable streams (this can cause issues with HLS ts segments - disable this or http_persistent)
                 { "reconnect_delay_max","7" },                                       // max reconnect delay in seconds after which to give up
-                { "user_agent",         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" },
+                { "user_agent",         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36" },
+                { "reconnect_timeout",  "10" },                                      // max total reconnection time in seconds
+                { "prefer_native_api",  "1" },                                       // use native API for m3u8/HLS (fixes AVERROR_INVALIDDATA for YouTube)
 
                 { "extension_picky",    "0" },                                       // Added in ffmpeg v7.1.1 and causes issues when enabled with allowed extentions #577
 

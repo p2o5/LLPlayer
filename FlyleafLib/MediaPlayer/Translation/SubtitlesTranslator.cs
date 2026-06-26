@@ -323,6 +323,13 @@ public class SubTranslator
                 TimeSpan elapsed = Stopwatch.GetElapsedTime(start);
                 Log.Debug($"Translation End {sub.Index} in {elapsed.TotalMilliseconds} - {translated}");
             }
+
+            // If this subtitle is currently being displayed and translation hasn't been shown yet,
+            // update the display with the translated text
+            if (_config.player != null && sub.UseTranslated)
+            {
+                _config.player.SubtitleDisplay(sub.DisplayText, _subIndex, sub.UseTranslated);
+            }
         }
         catch (OperationCanceledException)
         {

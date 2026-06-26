@@ -216,6 +216,8 @@ public class FasterWhisperConfig : NotifyPropertyChanged
     public string? ManualEnginePath { get; set => Set(ref field, value); }
     public bool UseManualModel { get; set => Set(ref field, value); }
     public string? ManualModelDir { get; set => Set(ref field, value); }
+    /// <summary>Parent directory containing model subdirectories (default: whispermodels/).</summary>
+    public string? ModelDir { get; set => Set(ref field, value); }
     public string Model
     {
         get;

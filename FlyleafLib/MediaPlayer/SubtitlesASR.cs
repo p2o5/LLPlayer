@@ -1063,7 +1063,8 @@ public partial class FasterWhisperASRService : IASRService
         args.Add("--beep_off");
         args.Add("--model").Add(config.Model);
         args.Add("--model_dir")
-            .Add(config.UseManualModel ? config.ManualModelDir! : WhisperConfig.ModelsDirectory);
+            .Add(config.UseManualModel ? config.ManualModelDir! :
+                   (!string.IsNullOrEmpty(config.ModelDir) ? config.ModelDir : WhisperConfig.ModelsDirectory));
 
         if (config.IsEnglishModel)
         {
