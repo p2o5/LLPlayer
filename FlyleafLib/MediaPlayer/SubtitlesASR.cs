@@ -555,6 +555,15 @@ public class AudioReader : IDisposable
                 _ = _demuxer.Seek(ticks, forward);
             }
 
+            // Helper to safely convert frame PTS to ticks, clamping to TimeSpan range
+            long SafeTicks(long pts, double timebase)
+            {
+                long ticks = (long)(pts * timebase) - _demuxer.StartTime;
+                if (ticks > TimeSpan.MaxValue.Ticks) ticks = TimeSpan.MaxValue.Ticks;
+                if (ticks < 0) ticks = 0;
+                return ticks;
+            }
+
             // When passing the audio file to Whisper, it must be converted to a 16000 sample rate WAV file.
             // For this purpose, the ffmpeg API is used to perform the conversion.
             // Audio files are divided by a certain size, stored in memory, and passed by memory stream.
@@ -669,7 +678,7 @@ public class AudioReader : IDisposable
 
                     if (chunkStart == null)
                     {
-                        chunkStart = new TimeSpan((long)(framePts * _stream.Timebase) - _demuxer.StartTime);
+                        chunkStart = new TimeSpan(SafeTicks(framePts, _stream.Timebase));
                         if (chunkStart.Value.Ticks < 0)
                         {
                             // Correct to 0 if negative
@@ -682,7 +691,7 @@ public class AudioReader : IDisposable
                     // TODO: L: want it to split at the silent part
                     if (waveStream.Length >= chunkSize || chunkSw.Elapsed >= chunkElapsed)
                     {
-                        TimeSpan chunkEnd = new TimeSpan((long)(framePts * _stream.Timebase) - _demuxer.StartTime);
+                        TimeSpan chunkEnd = new TimeSpan(SafeTicks(framePts, _stream.Timebase));
                         chunkCnt++;
 
                         if (CanInfo) Log.Info(
@@ -717,7 +726,7 @@ public class AudioReader : IDisposable
             // Process remaining
             if (waveStream.Length > waveHeaderSize && framePts != NoTs)
             {
-                TimeSpan chunkEnd = new TimeSpan((long)(framePts * _stream.Timebase) - _demuxer.StartTime);
+                TimeSpan chunkEnd = new TimeSpan(SafeTicks(framePts, _stream.Timebase));
 
                 chunkCnt++;
 
