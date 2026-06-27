@@ -255,6 +255,13 @@ public abstract class OpenAIBaseTranslateSettings : NotifyPropertyChanged, ITran
     public int TimeoutMs { get; set => Set(ref field, value); } = 15000;
     public int TimeoutHealthMs { get; set => Set(ref field, value); } = 2000;
 
+    /// <summary>
+    /// Timeout for the very first request (server cold-start: model load).
+    /// After the first request, subsequent requests use TimeoutMs.
+    /// Defaults to 5 minutes for large models on CPU.
+    /// </summary>
+    public int InitialTimeoutMs { get; set => Set(ref field, value); } = 300000;
+
     #region LLM Parameters
     public double Temperature
     {

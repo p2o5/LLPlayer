@@ -15,18 +15,37 @@ namespace FlyleafLib.MediaPlayer.Translation.Services;
 public class OpenAIBaseTranslateService : ITranslateService
 {
     private readonly HttpClient _httpClient;
+    private readonly HttpClient? _initialHttpClient;
     private readonly OpenAIBaseTranslateSettings _settings;
     private readonly TranslateChatConfig _chatConfig;
     private readonly bool _wordMode;
+    private bool _initialRequestDone;
 
     private ChatTranslateMethod TranslateMethod => _chatConfig.TranslateMethod;
 
     public OpenAIBaseTranslateService(OpenAIBaseTranslateSettings settings, TranslateChatConfig chatConfig, bool wordMode)
     {
         _httpClient = settings.GetHttpClient();
+        // Use a separate client with a longer timeout for the very first request (server model cold-start).
+        // After the first request succeeds, all subsequent requests use _httpClient with the normal timeout.
+        if (settings.InitialTimeoutMs > settings.TimeoutMs)
+        {
+            _initialHttpClient = CreateClientWithTimeout(settings, TimeSpan.FromMilliseconds(settings.InitialTimeoutMs));
+        }
+        else
+        {
+            _initialHttpClient = null;
+        }
         _settings = settings;
         _chatConfig = chatConfig;
         _wordMode = wordMode;
+    }
+
+    private static HttpClient CreateClientWithTimeout(OpenAIBaseTranslateSettings settings, TimeSpan timeout)
+    {
+        var client = settings.GetHttpClient();
+        client.Timeout = timeout;
+        return client;
     }
 
     private string? _basePrompt;
@@ -40,9 +59,10 @@ public class OpenAIBaseTranslateService : ITranslateService
 
     public TranslateServiceType ServiceType => _settings.ServiceType;
 
-    public void Dispose()
+   public void Dispose()
     {
         _httpClient.Dispose();
+        _initialHttpClient?.Dispose();
     }
 
     public void Initialize(Language src, TargetLanguage target)
@@ -70,6 +90,18 @@ public class OpenAIBaseTranslateService : ITranslateService
         }
 
         return await DoOneByOne(text, token);
+    }
+
+    private HttpClient GetClientForRequest()
+    {
+        // First request (or KeepContext with empty history) uses the initial client for cold-start resilience.
+        // Once the first request succeeds, subsequent requests use the normal client with the standard timeout.
+        if (!_initialRequestDone && _initialHttpClient != null)
+        {
+            _initialRequestDone = true;
+            return _initialHttpClient;
+        }
+        return _httpClient;
     }
 
     private async Task<string> DoKeepContext(string text, CancellationToken token)
@@ -109,7 +141,7 @@ public class OpenAIBaseTranslateService : ITranslateService
         messages.Add(newMessage);
 
         string reply = await SendChatRequest(
-            _httpClient, _settings, messages.ToArray(), token);
+            GetClientForRequest(), _settings, messages.ToArray(), token);
 
         // add to message history if success
         _messageQueue.Enqueue(newMessage);
@@ -130,7 +162,7 @@ public class OpenAIBaseTranslateService : ITranslateService
             new() { role = "user", content = prompt }
         ];
 
-        return await SendChatRequest(_httpClient, _settings, messages, token);
+        return await SendChatRequest(GetClientForRequest(), _settings, messages, token);
     }
 
     public static async Task<string> Hello(OpenAIBaseTranslateSettings settings)
