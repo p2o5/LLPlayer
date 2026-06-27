@@ -464,6 +464,11 @@ public class AudioReader : IDisposable
                 _ => throw new InvalidOperationException()
             };
 
+            // Warm-up: run 1 second of silence through Whisper before real audio chunks arrive.
+            // This loads the model and completes the first inference pass while the producer
+            // is still accumulating audio frames, eliminating the ~30s cold-start penalty.
+            await WarmupASR(16000, token);
+
             while (await channel.Reader.WaitToReadAsync(token))
             {
                 // Use TryPeek() to reduce the channel capacity by one.
@@ -913,6 +918,38 @@ public class AudioReader : IDisposable
         }
 
         _isDisposed = true;
+    }
+
+   /// <summary>
+    /// Run 1 second of silence through FasterWhisper before real audio chunks arrive.
+    /// This eliminates the cold-start penalty (model load + subprocess spawn + first inference).
+    /// </summary>
+    internal static async Task WarmupASR(int sampleRate, CancellationToken token)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, true);
+
+        WriteWavHeader(stream, sampleRate, 1);
+        int samples = sampleRate * 1;
+        for (int i = 0; i < samples; i++)
+        {
+            writer.Write((short)0);
+        }
+        writer.Flush();
+        UpdateWavHeader(stream);
+        stream.Position = 0;
+
+        try
+        {
+            await using var asrService = new FasterWhisperASRService(
+                new Config() { Subtitles = new Config.SubtitlesConfig() });
+            await foreach (var _ in asrService.Do(stream, token)) { }
+        }
+        catch
+        {
+            // Warm-up may fail if FasterWhisper engine/model not yet downloaded.
+            // Subsequent real chunk will handle it normally.
+        }
     }
 }
 
