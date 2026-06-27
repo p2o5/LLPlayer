@@ -568,6 +568,12 @@ public class OpenAILikeTranslateSettings : OpenAIBaseTranslateSettings
     public override bool ModelRequired => false;
     public string ApiKey { get; set => Set(ref field, value); }
 
+    // Disable connection reuse for local servers (vLLM, Ollama, etc.) — idle pooled connections
+    // are often silently closed by the server, causing HttpClient.SendAsync to hang until TimeoutMs.
+    // See: "due to thread exit or application request, I/O operation aborted" on pause/resume.
+    [JsonIgnore]
+    protected override bool ReuseConnection => false;
+
     /// <summary>
     /// GetHttpClient
     /// </summary>
